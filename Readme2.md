@@ -3,6 +3,7 @@ Self Driving RC Car
 Python + OpenCV Neural Network + Haar-Cascade Classifiers
 
 Objective
+
 Modify a RC car to handle three tasks: self-driving on the track, stop sign and traffic light detection, and front collision avoidance.
 
 System Design
@@ -18,15 +19,23 @@ The system consists of three subsystems: input unit (camera, ultrasonic sensor),
 ![img_8984e589afe69cac](https://user-images.githubusercontent.com/19759107/64550564-d5805780-d33b-11e9-9b31-6130181fed66.jpg)
 
 Input Unit
+
+
 A Raspberry Pi board (model B+), attached with a pi camera module and an HC-SR04 ultrasonic sensor is used to collect input data. Two client programs run on Raspberry Pi for streaming color video and ultrasonic sensor data to the computer via local Wi-Fi connection. In order to achieve low latency video streaming, video is scaled down to QVGA (320×240) resolution.
 
 Processing Unit
+
+
 The processing unit (computer) handles multiple tasks: receiving data from Raspberry Pi, neural network training and prediction(steering), object detection(stop sign and traffic light), distance measurement(monocular vision), and sending instructions to Arduino through USB connection.
 
 TCP Server
+
+
 A multithread TCP server program runs on the computer to receive streamed image frames and ultrasonic data from the Raspberry Pi. Image frames are converted to gray scale and are decoded into numpy arrays.
 
 Neural Network
+
+
 One advantage of using neural network is that once the network is trained, it only needs to load trained parameters afterwards, thus prediction can be very fast. Only lower half of the input image is used for training and prediction purposes. There are 38,400 (320×120) nodes in the input layer and 32 nodes in the hidden layer. The number of nodes in the hidden layer is chosen fairly arbitrary. There are four nodes in the output layer where each node corresponds to the steering control instructions: left, right, forward and reverse respectively (though reverse is not used anywhere in this project, it’s still included in the output layer).
 
 ![mlp_half_32-2](https://user-images.githubusercontent.com/19759107/64550771-4f184580-d33c-11e9-91d0-30234d466534.jpg)
@@ -36,6 +45,8 @@ Below shows the training data collection process. First each frame is cropped an
 ![collect_train_data (1)](https://user-images.githubusercontent.com/19759107/64551682-4cb6eb00-d33e-11e9-9554-570ab5ac6eb8.jpg)
 
 Object Detection
+
+
 This project adapted the shape-based approach and used Haar feature-based cascade classifiers for object detection. Since each object requires its own classifier and follows the same process in training and detection, this project only focused on stop sign and traffic light detection.
 
 OpenCV provides a trainer as well as detector. Positive samples (contain target object) were acquired using a cell phone, and were cropped that only desired object is visible. Negative samples (without target object), on the other hand, were collected randomly. In particular, traffic light positive samples contains equal number of red traffic lights and green traffic light. The same negative sample dataset was used for both stop sign and traffic light training. Below shows some positive and negative samples used in this project.
@@ -52,6 +63,8 @@ To recognize different states of the traffic light(red, green), some image proce
 Firstly, trained cascade classifier is used to detect traffic light. The bounding box is considered as a region of interest (ROI). Secondly, Gaussian blur is applied inside the ROI to reduce noises. Thirdly, find the brightest point in the ROI. Finally, red or green states are determined simply based on the position of the brightest spot in the ROI.
 
 Distance Measurement
+
+
 Raspberry Pi can only support one pi camera module. Using two USB web cameras will bring extra weight to the RC car and also seems unpractical. Therefore, monocular vision method is chosen.
 
 This project adapted a geometry model of detecting distance to an object using monocular vision method proposed by Chu, Ji, Guo, Li and Wang (2004).
@@ -72,9 +85,13 @@ OpenCV provides functions for camera calibration. Camera matrix for the 5MP pi c
 The matrix returns values in pixels and h is measured in centimeters. By applying formula (3), the physical distance d is calculated in centimeters.
 
 RC Car Control Unit
+
+
 The RC car used in this project has an on/off switch type controller. When a button is pressed, the resistance between the relevant chip pin and ground is zero. Thus, an Arduino board is used to simulate button-press actions. Four Arduino pins are chosen to connect four chip pins on the controller, corresponding to forward, reverse, left and right actions respectively. Arduino pins sending LOW signal indicates grounding the chip pins of the controller; on the other hand sending HIGH signal indicates the resistance between chip pins and ground remain unchanged. The Arduino is connected to the computer via USB. The computer outputs commands to Arduino using serial interface, and then the Arduino reads the commands and writes out LOW or HIGH signals, simulating button-press actions to drive the RC car.
 
 Results
+
+
 Prediction on the testing samples returns an accuracy of 85% compared to the accuracy of 96% that the training samples returns. In actual driving situation, predictions are generated about 10 times a second (streaming rate roughly 10 frames/s).
 
 Haar features by nature are rotation sensitive. In this project, however, rotation is not a concern as both the stop sign and the traffic light are fixed objects, which is also a general case in real world environment.
